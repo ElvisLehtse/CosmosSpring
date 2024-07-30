@@ -1,9 +1,9 @@
 import './App.css';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Select from 'react-select'
 
 function App() {
-    const [originPlanet, setOriginPlanet] = useState({});
+    const [originPlanet, setOriginPlanet] = useState(null);
     const [destinationPlanet, setDestinationPlanet] = useState({});
     const [paths, setPaths] = useState(null);
     const [planets, setPlanets] = useState([]);
@@ -12,8 +12,18 @@ function App() {
     const [errorMsg, setErrorMsg] = useState(false);
     const [selectedCompanies, setSelectedCompanies] = useState([]);
     const [selectedFiltering, setSelectedFiltering] = useState("price");
+    const [priceListValidation, setPriceListValidation] = useState(false);
+    const [firstRound, setFirstRound] = useState(true);
+
+    const test = useCallback(() => {
+      fetch("http://localhost:8080/paths?originPlanet=" + originPlanet.uuid + "&destinationPlanet=" + destinationPlanet.uuid)
+      .then(res => res.json())
+      .then(body => setPaths(body))
+      setRouteMessage(`All routes from ${originPlanet.name} to ${destinationPlanet.name}:`);
+    }, [originPlanet, destinationPlanet]); 
 
     useEffect(() => {
+      if (priceListValidation === false) {
         fetch("http://localhost:8080/planets")
         .then(res => res.json())
         .then(body => {
@@ -23,21 +33,31 @@ function App() {
           fetch("http://localhost:8080/companies")
           .then(res => res.json())
           .then(body => setCompanies(body));
+          if (firstRound === false) {
+            test();
+          }
         });
-    }, []);
+      };
+      setPriceListValidation(true);
+    }, [priceListValidation, firstRound, test]);
 
     function selectPlanets(event) {
-        event.preventDefault();
-        if (originPlanet.uuid === destinationPlanet.uuid) {
-          setErrorMsg(true);
-        } else {
-          setErrorMsg(false);
+      setFirstRound(false);
+      event.preventDefault();
+      if (originPlanet.uuid === destinationPlanet.uuid) {
+        setErrorMsg(true);
+      } else {
+        setErrorMsg(false);
+      }
+      fetch("http://localhost:8080/currentPriceList")
+      .then(res => res.json())
+      .then(body => {
+        setPriceListValidation(body)
+        if (body === true) {
+          test();
         }
-        setRouteMessage(`All routes from ${originPlanet.name} to ${destinationPlanet.name}:`);
-        fetch("http://localhost:8080/paths?originPlanet=" + originPlanet.uuid + "&destinationPlanet=" + destinationPlanet.uuid)
-        .then(res => res.json())
-        .then(body => setPaths(body))
-    };
+      });
+    };  
 
     function changeOriginPlanet(event) {
       event.preventDefault();
@@ -112,7 +132,6 @@ function App() {
                 <span>{paths.map((path, index) => <div key={index}><button type="onClick"> Route {index + 1} </button> {path}</div>)}</span><br/>
             </div>
         }
-            
     
         <div style ={{display: "none"}}>
             <div className="container mt-3">

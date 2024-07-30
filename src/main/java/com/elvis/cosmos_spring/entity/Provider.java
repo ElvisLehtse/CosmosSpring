@@ -21,7 +21,7 @@ public class Provider {
     private Company company;
     @ManyToOne
     private RouteInfo route_info;
-    private Long price;
+    private Double price;
     private ZonedDateTime flight_start;
     private ZonedDateTime flight_end;
 

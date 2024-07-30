@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.ZonedDateTime;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
 
 @RestController
 @CrossOrigin("http://localhost:3000")
@@ -38,38 +37,34 @@ public class CosmosController {
   @Autowired
   BestDealCalculator bestDealCalculator;
   List<Planet> planetList;
-
   PriceList currentPriceList;
 
-  private Optional<PriceList> getPriceList() {
+  private void getPriceList() {
     Optional <PriceList> priceList = priceListRepository.findByValidUntilAfter(ZonedDateTime.now());
     if (priceList.isEmpty()) {
       PriceListDTO priceListDTO = apiReader.getJsonDataFromAPI();
-      databaseWriter.writeToDataBase(priceListDTO);
+      databaseWriter.writeTables(priceListDTO);
       priceList = Optional.of(new PriceList(priceListDTO.getId(), priceListDTO.getValidUntil()));
     }
-    return priceList;
+    currentPriceList = priceList.orElseThrow();
   }
 
   @GetMapping("planets")
   public List<Planet> getPlanets() {
-    Optional <PriceList> priceList = getPriceList();
-    planetList = planetRepository.findByPriceList(priceList.orElseThrow());
+    getPriceList();
+    planetList = planetRepository.findByPriceList(currentPriceList);
     return planetList;
   }
 
   @GetMapping("companies")
   public List<Company> getCompanies() {
-    Optional <PriceList> priceList = getPriceList();
-    return companyRepository.findByPriceList(priceList.orElseThrow());
+    return companyRepository.findByPriceList(currentPriceList);
   }
 
   @GetMapping("paths")
   public List<String> getPaths(@RequestParam (value = "originPlanet") UUID originPlanet, @RequestParam (value = "destinationPlanet") UUID destinationPlanet) {
-    Optional <PriceList> priceList = getPriceList();
-    bestDealCalculator.routeList = routeInfoRepository.findByPriceList(priceList.orElseThrow());
     List<String> allPaths = new ArrayList<>();
-    Map<Integer, List<RouteInfo>> allPossibleRoutes = bestDealCalculator.findAllPossibleRoutes(originPlanet, destinationPlanet, new ArrayList<>(), new ArrayList<>(), new HashMap<>(), null);
+    Map<Integer, List<RouteInfo>> allPossibleRoutes = bestDealCalculator.findAllPossibleRoutes(originPlanet, destinationPlanet, new ArrayList<>(), new ArrayList<>(), new HashMap<>(), null, routeInfoRepository.findByPriceList(currentPriceList));
 
     for (int i = 0; i < allPossibleRoutes.size(); i++) {
       StringBuilder pathBuilder = new StringBuilder();
@@ -85,10 +80,15 @@ public class CosmosController {
   }
 
   @GetMapping("filters")
-  public void getFilters(@RequestParam (value = "companies") List<String> companies, @RequestParam (value = "filter") String filter) {
-    System.out.println(filter);
-    for (int i = 0; i < companies.size(); i++) {
-      System.out.println(companies.get(i));
-    }
+  public List<String> getFilters(@RequestParam (value = "companies") List<String> companies, @RequestParam (value = "filter") String filter) {
+    List<String> allPaths = new ArrayList<>();
+
+    return allPaths;
+  }
+
+  @GetMapping("currentPriceList")
+  public boolean getCurrentPriceList() {
+    Optional <PriceList> priceList = priceListRepository.findByValidUntilAfter(ZonedDateTime.now());
+    return currentPriceList.getUuid().equals(priceList.orElseThrow().getUuid());
   }
 }

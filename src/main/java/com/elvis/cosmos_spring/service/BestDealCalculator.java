@@ -10,11 +10,8 @@ import java.util.UUID;
 
 @Service
 public class BestDealCalculator {
-
-    public List<RouteInfo> routeList;
-
     public Map<Integer, List<RouteInfo>> findAllPossibleRoutes(UUID originPlanet, UUID destinationPlanet, List<UUID> currentPath,
-                                      List<RouteInfo> listOfRoutes, Map<Integer, List<RouteInfo>> allPossibleRoutes, RouteInfo routeInfo) {
+                                      List<RouteInfo> listOfRoutes, Map<Integer, List<RouteInfo>> allPossibleRoutes, RouteInfo routeInfo, List<RouteInfo> routeList) {
         currentPath.add(originPlanet);
         if (routeInfo != null) {
             listOfRoutes.add(routeInfo);
@@ -25,9 +22,11 @@ public class BestDealCalculator {
         for (RouteInfo route : routeList) {
             if (route.getFrom_planet().getUuid().equals(originPlanet) && !currentPath.contains(route.getTo_planet().getUuid())) {
                 findAllPossibleRoutes(route.getTo_planet().getUuid(), destinationPlanet, new ArrayList<>(currentPath),
-                            new ArrayList<>(listOfRoutes), allPossibleRoutes, route);
+                            new ArrayList<>(listOfRoutes), allPossibleRoutes, route, routeList);
             }
         }
         return allPossibleRoutes;
     }
+
+
 }
