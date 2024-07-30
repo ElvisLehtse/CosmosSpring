@@ -24,5 +24,7 @@ public class Provider {
     private Double price;
     private ZonedDateTime flight_start;
     private ZonedDateTime flight_end;
+    @ManyToOne
+    private PriceList priceList;
 
 }

@@ -4,11 +4,7 @@ import com.elvis.cosmos_spring.entity.Company;
 import com.elvis.cosmos_spring.entity.Planet;
 import com.elvis.cosmos_spring.entity.PriceList;
 import com.elvis.cosmos_spring.entity.RouteInfo;
-import com.elvis.cosmos_spring.model.PriceListDTO;
-import com.elvis.cosmos_spring.repository.CompanyRepository;
-import com.elvis.cosmos_spring.repository.PlanetRepository;
 import com.elvis.cosmos_spring.repository.PriceListRepository;
-import com.elvis.cosmos_spring.repository.RouteInfoRepository;
 import com.elvis.cosmos_spring.service.BestDealCalculator;
 import com.elvis.cosmos_spring.service.DatabaseWriter;
 import com.elvis.cosmos_spring.util.APIReader;
@@ -29,42 +25,32 @@ public class CosmosController {
   @Autowired
   PriceListRepository priceListRepository;
   @Autowired
-  PlanetRepository planetRepository;
-  @Autowired
-  CompanyRepository companyRepository;
-  @Autowired
-  RouteInfoRepository routeInfoRepository;
-  @Autowired
   BestDealCalculator bestDealCalculator;
-  List<Planet> planetList;
-  PriceList currentPriceList;
 
-  private void getPriceList() {
-    Optional <PriceList> priceList = priceListRepository.findByValidUntilAfter(ZonedDateTime.now());
-    if (priceList.isEmpty()) {
-      PriceListDTO priceListDTO = apiReader.getJsonDataFromAPI();
-      databaseWriter.writeTables(priceListDTO);
-      priceList = Optional.of(new PriceList(priceListDTO.getId(), priceListDTO.getValidUntil()));
+  private void checkPriceListValidation() {
+    if (priceListRepository.findByValidUntilAfter(ZonedDateTime.now()).isEmpty()) {
+      databaseWriter.writeTables(apiReader.getJsonDataFromAPI());
+    } else if (DatabaseWriter.getPriceList() == null) {
+      databaseWriter.initiateLists();
     }
-    currentPriceList = priceList.orElseThrow();
   }
 
   @GetMapping("planets")
   public List<Planet> getPlanets() {
-    getPriceList();
-    planetList = planetRepository.findByPriceList(currentPriceList);
-    return planetList;
+    checkPriceListValidation();
+    return DatabaseWriter.getPlanetList();
   }
 
   @GetMapping("companies")
   public List<Company> getCompanies() {
-    return companyRepository.findByPriceList(currentPriceList);
+    checkPriceListValidation();
+    return DatabaseWriter.getCompanyList();
   }
 
   @GetMapping("paths")
   public List<String> getPaths(@RequestParam (value = "originPlanet") UUID originPlanet, @RequestParam (value = "destinationPlanet") UUID destinationPlanet) {
     List<String> allPaths = new ArrayList<>();
-    Map<Integer, List<RouteInfo>> allPossibleRoutes = bestDealCalculator.findAllPossibleRoutes(originPlanet, destinationPlanet, new ArrayList<>(), new ArrayList<>(), new HashMap<>(), null, routeInfoRepository.findByPriceList(currentPriceList));
+    Map<Integer, List<RouteInfo>> allPossibleRoutes = bestDealCalculator.findAllPossibleRoutes(originPlanet, destinationPlanet, new ArrayList<>(), new ArrayList<>(), new HashMap<>(), null, DatabaseWriter.getRouteInfoList());
 
     for (int i = 0; i < allPossibleRoutes.size(); i++) {
       StringBuilder pathBuilder = new StringBuilder();
@@ -89,6 +75,6 @@ public class CosmosController {
   @GetMapping("currentPriceList")
   public boolean getCurrentPriceList() {
     Optional <PriceList> priceList = priceListRepository.findByValidUntilAfter(ZonedDateTime.now());
-    return currentPriceList.getUuid().equals(priceList.orElseThrow().getUuid());
+    return DatabaseWriter.getPriceList().getUuid().equals(priceList.orElseThrow().getUuid());
   }
 }

@@ -5,9 +5,12 @@ import com.elvis.cosmos_spring.model.Leg;
 import com.elvis.cosmos_spring.model.PriceListDTO;
 import com.elvis.cosmos_spring.model.ProviderDTO;
 import com.elvis.cosmos_spring.repository.*;
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -26,53 +29,85 @@ public class DatabaseWriter {
     @Autowired
     ProviderRepository providerRepository;
 
-    private void addPlanet(List<Planet> planetList, PriceList priceList, String planetName) {
-        boolean isPlanetUnique = planetList.stream().noneMatch(e -> e.getName().equals(planetName));
+    @Getter
+    @Setter
+    private static PriceList priceList;
+    @Getter
+    @Setter
+    private static List<Planet> planetList;
+    @Getter
+    @Setter
+    private static List<Company> companyList;
+    @Getter
+    @Setter
+    private static List<RouteInfo> routeInfoList;
+    @Getter
+    @Setter
+    private static List<Provider> providerList;
+
+    private void resetLists() {
+        setPlanetList(new ArrayList<>());
+        setCompanyList(new ArrayList<>());
+        setRouteInfoList(new ArrayList<>());
+        setProviderList(new ArrayList<>());
+    }
+
+    public void initiateLists() {
+        setPriceList(priceListRepository.findByValidUntilAfter(ZonedDateTime.now()).orElseThrow());
+        setPlanetList(planetRepository.findByPriceList(getPriceList()));
+        setCompanyList(companyRepository.findByPriceList(getPriceList()));
+        setRouteInfoList(routeInfoRepository.findByPriceList(getPriceList()));
+        setProviderList(providerRepository.findByPriceList(getPriceList()));
+    }
+
+    private void addPlanet(String planetName) {
+        boolean isPlanetUnique = getPlanetList().stream().noneMatch(e -> e.getName().equals(planetName));
         if (isPlanetUnique) {
-            Planet planet = new Planet(null, planetName, priceList);
-            planetList.add(planet);
+            Planet planet = new Planet(null, planetName, getPriceList());
+            getPlanetList().add(planet);
             planetRepository.save(planet);
         }
     }
     public void writeTables(PriceListDTO priceListDTO) {
+        resetLists();
+
         //Add priceList
-        PriceList priceList = new PriceList(priceListDTO.getId(), priceListDTO.getValidUntil());
-        priceListRepository.save(priceList);
+        setPriceList(new PriceList(priceListDTO.getId(), priceListDTO.getValidUntil()));
+        priceListRepository.save(getPriceList());
 
         ArrayList<Leg> legs = priceListDTO.getLegs();
-        List<Planet> planetList = new ArrayList<>();
-        List <UUID> companyList = new ArrayList<>();
-
         for (Leg leg : legs) {
             //Add planets
             String fromPlanetName = leg.getRouteInfo().getFrom().getName();
             String toPlanetName = leg.getRouteInfo().getTo().getName();
-            addPlanet(planetList, priceList, fromPlanetName);
-            addPlanet(planetList, priceList, toPlanetName);
+            addPlanet(fromPlanetName);
+            addPlanet(toPlanetName);
 
             //Add routeInfo
             RouteInfo routeInfo = new RouteInfo(
                     leg.getRouteInfo().getId(),
-                    priceList,
-                    planetList.stream().filter(e -> e.getName().equals(fromPlanetName)).findFirst().orElseThrow(),
-                    planetList.stream().filter(e -> e.getName().equals(toPlanetName)).findFirst().orElseThrow(),
+                    getPriceList(),
+                    getPlanetList().stream().filter(e -> e.getName().equals(fromPlanetName)).findFirst().orElseThrow(),
+                    getPlanetList().stream().filter(e -> e.getName().equals(toPlanetName)).findFirst().orElseThrow(),
                     leg.getRouteInfo().getDistance()
             );
+            getRouteInfoList().add(routeInfo);
             routeInfoRepository.save(routeInfo);
 
             //Add companies and providers
-            ArrayList<ProviderDTO> providerList = leg.getProviders();
-            for (ProviderDTO provider : providerList) {
-                UUID companyUuid = provider.getCompany().getId();
-                String companyName = provider.getCompany().getName();
-                boolean isCompanyUnique = !companyList.contains(companyUuid);
-                Company company = new Company(companyUuid, companyName, priceList);
+            ArrayList<ProviderDTO> providerDTOList = leg.getProviders();
+            for (ProviderDTO providerDTO : providerDTOList) {
+                UUID companyUuid = providerDTO.getCompany().getId();
+                String companyName = providerDTO.getCompany().getName();
+                boolean isCompanyUnique = getCompanyList().stream().noneMatch(e -> e.getUuid().equals(companyUuid));
+                Company company = new Company(companyUuid, companyName, getPriceList());
                 if (isCompanyUnique) {
-                    companyList.add(companyUuid);
+                    getCompanyList().add(company);
                     companyRepository.save(company);
                 }
-                Provider providerDTO = new Provider(provider.getId(), company, routeInfo, provider.getPrice(), provider.getFlightStart(), provider.getFlightEnd());
-                providerRepository.save(providerDTO);
+                Provider provider = new Provider(providerDTO.getId(), company, routeInfo, providerDTO.getPrice(), providerDTO.getFlightStart(), providerDTO.getFlightEnd(), getPriceList());
+                getProviderList().add(provider);
+                providerRepository.save(provider);
             }
         }
     }
