@@ -50,7 +50,8 @@ public class CosmosController {
   @GetMapping("paths")
   public List<String> getPaths(@RequestParam (value = "originPlanet") UUID originPlanet, @RequestParam (value = "destinationPlanet") UUID destinationPlanet) {
     List<String> allPaths = new ArrayList<>();
-    Map<Integer, List<RouteInfo>> allPossibleRoutes = bestDealCalculator.findAllPossibleRoutes(originPlanet, destinationPlanet, new ArrayList<>(), new ArrayList<>(), new HashMap<>(), null, DatabaseWriter.getRouteInfoList());
+    Map<Integer, List<RouteInfo>> allPossibleRoutes =
+            bestDealCalculator.findAllPossibleRoutes(originPlanet, destinationPlanet, new ArrayList<>(), new ArrayList<>(), new HashMap<>(), null, DatabaseWriter.getRouteInfoList());
 
     for (int i = 0; i < allPossibleRoutes.size(); i++) {
       StringBuilder pathBuilder = new StringBuilder();

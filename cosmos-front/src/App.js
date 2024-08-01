@@ -15,7 +15,7 @@ function App() {
     const [priceListValidation, setPriceListValidation] = useState(false);
     const [firstRound, setFirstRound] = useState(true);
 
-    const test = useCallback(() => {
+    const getPaths = useCallback(() => {
       fetch("http://localhost:8080/paths?originPlanet=" + originPlanet.uuid + "&destinationPlanet=" + destinationPlanet.uuid)
       .then(res => res.json())
       .then(body => setPaths(body))
@@ -34,12 +34,12 @@ function App() {
           .then(res => res.json())
           .then(body => setCompanies(body));
           if (firstRound === false) {
-            test();
+            getPaths();
           }
         });
       };
       setPriceListValidation(true);
-    }, [priceListValidation, firstRound, test]);
+    }, [priceListValidation, firstRound, getPaths]);
 
     function selectPlanets(event) {
       setFirstRound(false);
@@ -54,7 +54,7 @@ function App() {
       .then(body => {
         setPriceListValidation(body)
         if (body === true) {
-          test();
+          getPaths();
         }
       });
     };  
